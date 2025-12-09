@@ -47,19 +47,131 @@ The grid search confirms that the optimized hybrid model significantly outperfor
 ```
 .
 ├── data/
-│   └── data.csv          # Raw UCI Online Retail dataset
-├── artifacts/
-│   ├── item_embeddings.pkl    # Final hybrid item vectors
-│   ├── customer_vectors.pkl   # Final customer preference vectors
-│   └── *.csv, *.png           # All optimization results and visualizations
-└── clean_notebook (1).ipynb  # Main project notebook
+│   └── data.csv                    # Raw UCI Online Retail dataset
+├── artifacts/                       # Generated artifacts (embeddings, models, plots)
+├── src/                            # Modular Python package
+│   ├── __init__.py
+│   ├── preprocessing.py            # Data cleaning & feature engineering
+│   ├── embeddings.py               # SPPMI, SBERT, hybrid fusion
+│   ├── models.py                   # Recommender model & FAISS indexing
+│   ├── evaluation.py               # Metrics & grid search
+│   └── utils.py                    # Visualization & helpers
+├── tests/                          # Comprehensive test suite
+│   ├── conftest.py                 # Pytest fixtures
+│   ├── test_preprocessing.py
+│   ├── test_embeddings.py
+│   ├── test_models.py
+│   └── test_evaluation.py
+├── clean_notebook (1).ipynb        # Original notebook
+├── example_usage.py                # Example script using modules
+├── requirements.txt                # Python dependencies
+├── setup.py                        # Package installation
+├── pytest.ini                      # Test configuration
+└── .gitignore
 ```
 
-### Dependencies
+## Quick Start
 
-To run this notebook, install the following libraries:
+### Installation
+
+1. **Clone the repository:**
+```bash
+git clone <repo-url>
+cd Time-Aware-Hybrid-Item-Embedding-Recommendation-
+```
+
+2. **Install dependencies:**
+```bash
+pip install -r requirements.txt
+# Or install as a package
+pip install -e .
+```
+
+3. **Download data:**
+Place the UCI Online Retail dataset in `data/data.csv`
+
+### Using the Modular Package
+
+```python
+from src import (
+    load_and_preprocess_data,
+    create_baskets,
+    extract_product_text,
+    build_hybrid_embeddings,
+    HybridRecommender
+)
+
+# Load and preprocess data
+df = load_and_preprocess_data('data/data.csv', artifacts_dir='artifacts')
+
+# Create inputs for embedding generation
+baskets = create_baskets(df)
+product_text = extract_product_text(df)
+
+# Build hybrid embeddings
+item_embeddings, _, _ = build_hybrid_embeddings(
+    baskets=baskets,
+    product_text_df=product_text,
+    alpha=0.6,  # Text weight
+    beta=0.6    # Basket weight
+)
+
+# Create and train recommender
+recommender = HybridRecommender(item_embeddings)
+recommender.fit(df, halflife_days=60)
+
+# Generate recommendations
+recommendations = recommender.recommend(customer_id=12345, n_recommendations=10)
+
+# Save model
+recommender.save('artifacts/recommender_model.pkl')
+
+# Load model later
+recommender = HybridRecommender.load('artifacts/recommender_model.pkl')
+```
+
+### Running the Example Script
 
 ```bash
-pip install pandas numpy scikit-learn matplotlib seaborn tqdm
-pip install sentence-transformers faiss-cpu # Use faiss-gpu if available
+python example_usage.py
 ```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=src --cov-report=html
+
+# Run specific test file
+pytest tests/test_models.py
+```
+
+## API Reference
+
+### Preprocessing (`src.preprocessing`)
+- `load_and_preprocess_data()` - End-to-end preprocessing pipeline
+- `create_baskets()` - Extract transaction baskets
+- `extract_product_text()` - Get canonical product descriptions
+- `create_time_split()` - Create time-based train/test split
+
+### Embeddings (`src.embeddings`)
+- `build_sppmi_embeddings()` - Generate behavioral embeddings
+- `build_text_embeddings()` - Generate semantic embeddings (SBERT/TF-IDF)
+- `combine_embeddings()` - Hybrid fusion with PCA
+- `build_hybrid_embeddings()` - End-to-end embedding pipeline
+
+### Models (`src.models`)
+- `HybridRecommender` - Main recommendation engine
+  - `.fit()` - Build customer vectors from transactions
+  - `.recommend()` - Generate recommendations for a customer
+  - `.get_similar_items()` - Find similar items
+  - `.save()` / `.load()` - Persist and load models
+
+### Evaluation (`src.evaluation`)
+- `precision_at_k()`, `recall_at_k()`, `ndcg_at_k()` - Metrics
+- `evaluate_model()` - Evaluate recommender on test set
+- `grid_search_weights()` - Optimize alpha/beta weights
+- `find_best_weights()` - Extract best configuration from grid search
